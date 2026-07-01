@@ -1,0 +1,18 @@
+geopandas==0.14.*
+shapely==2.0.*
+fiona
+pyproj
+rtree            # spatial indexing for sjoin / select-by-location
+rasterio==1.3.*
+rasterstats
+xarray
+rioxarray
+numpy
+pandas
+scipy
+matplotlib
+mapclassify
+jupyterlab
+ipykernel
+ipywidgets
+pip
