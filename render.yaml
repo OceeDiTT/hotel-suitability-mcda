@@ -1,0 +1,19 @@
+# Render Blueprint: managed PostGIS-enabled Postgres + the dashboard/API container.
+# Verify plan names and PostGIS availability in Render's current docs before applying.
+databases:
+  - name: hotel-db
+    databaseName: hotel
+    plan: basic-256mb
+    ipAllowList:            # needed so you can run the ETL from your machine; restrict to your IP
+      - source: 0.0.0.0/0
+        description: ETL from laptop (tighten me)
+services:
+  - type: web
+    name: lisbon-hotel-dashboard
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    plan: starter
+    healthCheckPath: /api/health
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase: {name: hotel-db, property: connectionString}

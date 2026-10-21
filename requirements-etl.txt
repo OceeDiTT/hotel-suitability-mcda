@@ -1,0 +1,10 @@
+-r requirements-api.txt
+geopandas>=1.0
+pyogrio>=0.9
+rasterio>=1.4
+rasterstats>=0.20
+shapely>=2.0
+numpy>=1.26
+pillow>=10
+SQLAlchemy>=2.0
+GeoAlchemy2>=0.15

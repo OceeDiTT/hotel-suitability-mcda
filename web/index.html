@@ -1,0 +1,207 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lisbon hotel site suitability</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<style>
+:root{--bg:#fff;--panel:#fff;--ink:#1a1d23;--mute:#6b7280;--line:#e5e7eb;--accent:#0f766e;--bar:#e5e7eb}
+@media (prefers-color-scheme:dark){:root{--bg:#0f1115;--panel:#171a21;--ink:#e8eaee;--mute:#9aa3b2;--line:#2a2f3a;--accent:#2dd4bf;--bar:#2a2f3a}}
+*{box-sizing:border-box}html,body{height:100%;margin:0}
+body{font:14px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color:var(--ink);background:var(--bg);display:flex}
+#side{width:360px;max-width:100%;height:100%;overflow-y:auto;background:var(--panel);border-right:1px solid var(--line);padding:14px 16px 24px;transition:margin .2s;flex:none;z-index:1000}
+#side.hidden{margin-left:-360px}
+#map{flex:1;height:100%}
+#toggle{position:absolute;top:10px;left:10px;z-index:1100;border:1px solid var(--line);background:var(--panel);color:var(--ink);border-radius:8px;padding:6px 10px;cursor:pointer;font:inherit}
+#side:not(.hidden)~#toggle{left:370px}
+h1{font-size:17px;margin:2px 0 2px 44px}h2{font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--mute);margin:20px 0 8px}
+.sub{color:var(--mute);font-size:12px;margin:0 0 10px 44px}
+select,input[type=range]{width:100%}select{padding:6px;border-radius:6px;border:1px solid var(--line);background:var(--bg);color:var(--ink)}
+.kpis{display:grid;grid-template-columns:1fr 1fr;gap:8px}.kpi{border:1px solid var(--line);border-radius:8px;padding:8px 10px}
+.kpi b{font-size:22px;display:block}.kpi span{color:var(--mute);font-size:12px}
+.row{display:flex;align-items:center;gap:8px;margin:5px 0}.row label{flex:1;cursor:pointer}
+.sw{width:14px;height:14px;border-radius:3px;flex:none;border:1px solid rgba(0,0,0,.25)}
+.hint{color:var(--mute);font-size:12px;margin:0 0 6px 22px}
+.bar{height:8px;background:var(--bar);border-radius:4px;overflow:hidden}.bar i{display:block;height:100%;background:var(--accent)}
+.lbl{display:flex;justify-content:space-between;font-size:12px;margin:8px 0 3px}
+table{width:100%;border-collapse:collapse;font-size:13px}td,th{padding:4px 2px;border-bottom:1px solid var(--line);text-align:right}
+td:first-child,th:first-child{text-align:left}th{color:var(--mute);font-weight:500;font-size:12px}
+tr.site{cursor:pointer}tr.site:hover{background:var(--bar)}
+.warn{border-left:3px solid #d97706;background:rgba(217,119,6,.1);padding:8px 10px;font-size:12px;border-radius:0 6px 6px 0;margin-top:10px}
+details{margin-top:10px}summary{cursor:pointer;color:var(--mute)}
+pre{white-space:pre-wrap;font-size:11px;background:var(--bar);padding:8px;border-radius:6px}
+.px{image-rendering:pixelated}
+.rank-tip{background:#111;color:#fff;border:0;border-radius:10px;padding:0 6px;font-weight:700;box-shadow:none}
+.rank-tip:before{display:none}
+@media (max-width:700px){#side{position:absolute;width:88%;height:100%}#side.hidden{margin-left:-90%}#side:not(.hidden)~#toggle{left:10px;top:auto;bottom:14px}}
+</style>
+</head>
+<body>
+<aside id="side">
+  <h1>Where to build a hotel in Lisbon?</h1>
+  <p class="sub">Multi-criteria site suitability</p>
+  <select id="run" aria-label="Analysis run"></select>
+
+  <h2>Result funnel</h2>
+  <div class="kpis">
+    <div class="kpi"><b id="k-final">–</b><span id="k-final-lbl">sites on map</span></div>
+    <div class="kpi"><b id="k-ha">–</b><span>hectares in total</span></div>
+  </div>
+  <div class="lbl"><span>Candidate areas ≥ 1 ha (all 3 criteria)</span><b id="k-cand">–</b></div>
+  <div class="bar"><i id="b-cand" style="width:100%"></i></div>
+  <div class="lbl"><span>…fully inside urbanisation plan</span><b id="k-final2">–</b></div>
+  <div class="bar"><i id="b-final"></i></div>
+
+  <h2>Layers</h2>
+  <div class="row"><span class="sw" style="background:#e11d48"></span><input type="checkbox" id="l-final" checked><label for="l-final">Suitable sites</label></div>
+  <div class="row"><span class="sw" style="background:#f59e0b"></span><input type="checkbox" id="l-rejected"><label for="l-rejected">Rejected (outside urban plan)</label></div>
+  <div class="row"><span class="sw" style="border:2px dashed #2563eb;background:none"></span><input type="checkbox" id="l-urban" checked><label for="l-urban">Urbanisation plan limit</label></div>
+  <div class="row"><span class="sw" style="border:3px solid #1f2937;background:none"></span><input type="checkbox" id="l-parishes"><label for="l-parishes">Parishes</label></div>
+  <h2>Criteria rasters <small style="text-transform:none;letter-spacing:0">(one at a time)</small></h2>
+  <div id="overlays"></div>
+  <div class="row"><span>Opacity</span><input type="range" id="opacity" min="10" max="100" value="70"></div>
+
+  <h2>Filter</h2>
+  <div class="lbl"><span>Minimum site area</span><b id="min-label">1.0 ha</b></div>
+  <input type="range" id="min-area" min="1" max="10" step="0.1" value="1">
+  <div class="row"><span>Basemap</span>
+    <select id="basemap" style="flex:1"><option value="osm">Streets</option><option value="sat">Satellite</option><option value="light">Light</option></select></div>
+
+  <h2>Criteria pass rate (share of study area)</h2>
+  <div id="pass"></div>
+
+  <h2>Sites by parish</h2>
+  <table id="parish-tbl"><thead><tr><th>Parish</th><th>Sites</th><th>ha</th></tr></thead><tbody></tbody></table>
+
+  <h2>Top 10 sites by area</h2>
+  <table id="site-tbl"><thead><tr><th>#</th><th>Parish</th><th>ha</th></tr></thead><tbody></tbody></table>
+
+  <div class="warn" id="warn" hidden></div>
+  <details><summary>Method &amp; parameters</summary>
+    <p>Roads ≥ buffer distance, land cover = agriculture or forest/natural, slope below limit, on a common raster grid; fully suitable cells are vectorised, filtered to ≥ 1 ha and must lie entirely within the urbanisation plan. The weighted-sum raster is informational: every site meets all criteria, so all sites have the same maximum score.</p>
+    <pre id="params"></pre></details>
+</aside>
+<button id="toggle" aria-label="Toggle panel">☰</button>
+<div id="map"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script>
+const $ = s => document.querySelector(s);
+const get = (p, o = {}) => fetch('/api/' + p + (Object.keys(o).length ? '?' + new URLSearchParams(o) : ''))
+  .then(r => { if (!r.ok) throw new Error(r.status + ' ' + p); return r.json(); });
+const fmt = (n, d = 0) => Number(n).toLocaleString('en', {minimumFractionDigits: d, maximumFractionDigits: d});
+
+const map = L.map('map', {zoomControl: true}).setView([38.74, -9.15], 12);
+map.createPane('raster'); map.getPane('raster').style.zIndex = 300;
+const base = {
+  osm: L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {maxZoom: 19, attribution: '© OpenStreetMap'}),
+  sat: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {maxZoom: 19, attribution: 'Esri World Imagery'}),
+  light: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}', {maxNativeZoom: 16, maxZoom: 19, attribution: 'Esri, HERE, Garmin'})
+};
+let current = base.osm.addTo(map);
+$('#basemap').onchange = e => { map.removeLayer(current); current = base[e.target.value].addTo(map); current.bringToBack(); };
+
+let runId = null, finalGJ = null, rejectedGJ = null, maxHa = 1;
+const layers = {}, siteLayers = {}; let overlayLayer = null, overlayMeta = [];
+
+const TOP_N = 10;
+const minArea = () => parseFloat($('#min-area').value);
+
+function toggleLayer(key, on) { if (!layers[key]) return; on ? layers[key].addTo(map) : map.removeLayer(layers[key]); }
+
+function buildSites() {
+  ['final', 'rejected'].forEach(k => layers[k] && map.removeLayer(layers[k]));
+  Object.keys(siteLayers).forEach(k => delete siteLayers[k]);
+  const shown = finalGJ.features.filter(ft => ft.properties.area_ha >= minArea());   // all sites on the map
+  layers.final = L.geoJSON({type: 'FeatureCollection', features: shown}, {
+    style: {color: '#7f1d1d', weight: 1.5, fillColor: '#e11d48', fillOpacity: .8},
+    onEachFeature: (ft, l) => { siteLayers[ft.properties.site_id] = l;
+      l.bindPopup(`<b>Site #${ft.properties.rank}</b><br>${ft.properties.parish ?? '—'}<br>${fmt(ft.properties.area_ha, 2)} ha · ${fmt(ft.properties.area_m2)} m²`);
+      l.bindTooltip(String(ft.properties.rank), {permanent: true, direction: 'center', className: 'rank-tip'}); }});
+  layers.rejected = L.geoJSON(rejectedGJ, {filter: ft => ft.properties.area_ha >= minArea(),
+    style: {color: '#b45309', weight: 1, fillColor: '#f59e0b', fillOpacity: .5},
+    onEachFeature: (ft, l) => l.bindPopup(`<b>Rejected</b> – outside urban plan<br>${fmt(ft.properties.area_ha, 2)} ha`)});
+  $('#l-final').checked && layers.final.addTo(map);
+  $('#l-rejected').checked && layers.rejected.addTo(map);
+
+  $('#site-tbl tbody').innerHTML = shown.slice(0, TOP_N).map(ft => `<tr class="site" data-id="${ft.properties.site_id}">
+     <td>${ft.properties.rank}</td><td>${ft.properties.parish ?? '—'}</td><td>${fmt(ft.properties.area_ha, 2)}</td></tr>`).join('');
+  document.querySelectorAll('tr.site').forEach(tr => tr.onclick = () => {
+    const l = siteLayers[tr.dataset.id]; if (!l) return;
+    if (!map.hasLayer(layers.final)) { $('#l-final').checked = true; layers.final.addTo(map); }
+    map.fitBounds(l.getBounds(), {maxZoom: 17}); l.openPopup();
+  });
+  const byP = {};
+  shown.forEach(ft => { const k = ft.properties.parish ?? '—'; (byP[k] ??= {n: 0, ha: 0}); byP[k].n++; byP[k].ha += ft.properties.area_ha; });
+  $('#parish-tbl tbody').innerHTML = Object.entries(byP).sort((x, y) => y[1].ha - x[1].ha)
+    .map(([k, v]) => `<tr><td>${k}</td><td>${v.n}</td><td>${fmt(v.ha, 1)}</td></tr>`).join('');
+  $('#k-final').textContent = shown.length;
+  $('#k-final-lbl').textContent = `sites on map (of ${finalGJ.features.length})`;
+  $('#k-ha').textContent = fmt(shown.reduce((t, x) => t + x.properties.area_ha, 0), 1);
+}
+
+function setOverlay(name) {
+  if (overlayLayer) { map.removeLayer(overlayLayer); overlayLayer = null; }
+  if (!name) return;
+  const m = overlayMeta.find(o => o.name === name);
+  overlayLayer = L.imageOverlay(`/api/overlays/${name}.png?run_id=${runId}`,
+    [[m.south, m.west], [m.north, m.east]], {pane: 'raster', opacity: $('#opacity').value / 100, className: 'px'}).addTo(map);
+}
+
+async function load(id) {
+  const [sum, fin, rej, ov] = await Promise.all([
+    get('summary', id ? {run_id: id} : {}), get('sites', {...(id ? {run_id: id} : {}), stage: 'final'}),
+    get('sites', {...(id ? {run_id: id} : {}), stage: 'rejected'}), get('overlays', id ? {run_id: id} : {})]);
+  runId = sum.run_id; finalGJ = fin; rejectedGJ = rej; overlayMeta = ov.overlays;
+  maxHa = Math.max(1, ...fin.features.map(f => f.properties.area_ha), ...rej.features.map(f => f.properties.area_ha));
+  const slider = $('#min-area'); slider.max = Math.ceil(maxHa); slider.value = Math.min(slider.value, slider.max);
+  $('#min-label').textContent = fmt(minArea(), 1) + ' ha';
+
+  const nc = sum.n_candidates, nf = sum.n_final;
+  $('#k-cand').textContent = nc; $('#k-final2').textContent = nf; $('#b-final').style.width = nc ? (100 * nf / nc) + '%' : 0;
+  $('#params').textContent = JSON.stringify(sum.params, null, 1);
+
+  const qa = sum.qa, n = qa.study_cells;
+  const rows = [['Roads ≥ buffer', qa.pass_roads], ['Land cover', qa.pass_landcover], ['Slope', qa.pass_slope], ['All three', qa.pass_all]];
+  $('#pass').innerHTML = rows.map(([l, v]) => `<div class="lbl"><span>${l}</span><b>${fmt(100 * v / n, 1)}%</b></div><div class="bar"><i style="width:${100 * v / n}%"></i></div>`).join('');
+  const w = $('#warn');
+  if (qa.missing_slope_cells > 0 && !sum.params.missing_slope_suitable) {
+    w.hidden = false;
+    w.textContent = `${fmt(qa.missing_slope_cells)} cells (${fmt(100 * qa.missing_slope_cells / n, 1)}% of the study area) have no DEM-derived slope and were treated as unsuitable. Results may under-count candidate land until the DEM gap is fixed.`;
+  } else w.hidden = true;
+
+  $('#overlays').innerHTML = `<div class="row"><input type="radio" name="ov" id="ov-none" value="" checked><label for="ov-none">None</label></div>` +
+    overlayMeta.map(o => `<div class="row"><input type="radio" name="ov" id="ov-${o.name}" value="${o.name}"><label for="ov-${o.name}">${o.title}</label></div><p class="hint">${o.description}</p>`).join('');
+  document.querySelectorAll('input[name=ov]').forEach(r => r.onchange = () => setOverlay(r.value));
+  setOverlay(null);
+  buildSites();
+  if (layers.final.getBounds().isValid()) map.fitBounds(layers.final.getBounds(), {padding: [40, 40]});
+}
+
+(async () => {
+  try {
+    const runs = await get('runs');
+    $('#run').innerHTML = runs.map(r => `<option value="${r.run_id}">Run ${r.run_id}${r.label ? ' – ' + r.label : ''} · ${new Date(r.created_at).toLocaleDateString()} · ${r.n_final} sites</option>`).join('');
+    $('#run').onchange = e => load(e.target.value);
+    const [par, urb] = await Promise.all([get('layers/parishes'), get('layers/urban-plan')]);
+    layers.parishes = L.layerGroup([
+      L.geoJSON(par, {style: {color: '#ffffff', weight: 6, opacity: .85, fill: false}, interactive: false}),
+      L.geoJSON(par, {style: {color: '#1f2937', weight: 3, opacity: 1, fill: false}, onEachFeature: (f, l) => l.bindTooltip(f.properties.name, {sticky: true})})]);
+    layers.urban = L.geoJSON(urb, {style: {color: '#2563eb', weight: 2, dashArray: '6 4', fill: false}}).addTo(map);
+    await load();
+  } catch (e) {
+    $('#side').insertAdjacentHTML('beforeend', `<div class="warn">Could not load data: ${e.message}. Has the ETL been run?</div>`);
+  }
+})();
+
+$('#l-final').onchange = e => toggleLayer('final', e.target.checked);
+$('#l-rejected').onchange = e => toggleLayer('rejected', e.target.checked);
+$('#l-urban').onchange = e => toggleLayer('urban', e.target.checked);
+$('#l-parishes').onchange = e => toggleLayer('parishes', e.target.checked);
+$('#opacity').oninput = e => overlayLayer && overlayLayer.setOpacity(e.target.value / 100);
+$('#min-area').oninput = e => { $('#min-label').textContent = fmt(minArea(), 1) + ' ha'; if (finalGJ) buildSites(); };
+$('#toggle').onclick = () => { $('#side').classList.toggle('hidden'); setTimeout(() => map.invalidateSize(), 250); };
+</script>
+</body>
+</html>
