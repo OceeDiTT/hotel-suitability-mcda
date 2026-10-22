@@ -34,26 +34,7 @@ Every ETL run is stored with its parameters, input lineage and QA counts, so sce
 
 ## Architecture
 
-```
-data/*.shp, *.tif
-      |
-      v
-ETL  (python -m etl.run)
-  1. extract + validate CRS  ->  schema raw
-  2. multi-criteria model (rasters on a 20 m grid)
-  3. publish results         ->  schema analysis
-      |
-      v
-PostgreSQL + PostGIS
-  raw.*       parishes, roads, landcover, urban_plan
-  analysis.*  run, site, overlay  (+ views v_site_ranked, v_parish_summary)
-      |
-      v
-FastAPI  (read-only JSON / GeoJSON / PNG)  +  static dashboard
-      |
-      v
-Leaflet map in the browser
-```
+![System architecture](docs/architecture.png)
 
 The heavy GIS work happens offline in the ETL. The web app only reads finished results, which is why it runs on a small free server.
 
