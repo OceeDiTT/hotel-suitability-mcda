@@ -76,7 +76,7 @@ def sites(run_id: int | None = None, stage: str = Query("all", pattern="^(all|fi
     rows = q(f"""
         SELECT jsonb_build_object('type','FeatureCollection','features', COALESCE(jsonb_agg(
           jsonb_build_object('type','Feature','id',site_id,
-            'geometry', ST_AsGeoJSON(ST_Transform(geom,4326), 6)::jsonb,
+            'geometry', public.ST_AsGeoJSON(public.ST_Transform(geom,4326), 6)::jsonb,
             'properties', jsonb_build_object('site_id',site_id,'area_ha',area_ha,'area_m2',area_m2,
                'rank',rank_by_area,'parish',parish_name,'score_mean',score_mean,'score_max',score_max,
                'in_urban_plan',in_urban_plan)) ORDER BY area_m2 DESC), '[]'::jsonb)) AS fc
@@ -88,7 +88,7 @@ def _layer(table, props_sql, simplify):
     rows = q(f"""
         SELECT jsonb_build_object('type','FeatureCollection','features', COALESCE(jsonb_agg(
           jsonb_build_object('type','Feature',
-            'geometry', ST_AsGeoJSON(ST_Transform(ST_SimplifyPreserveTopology(geometry,{simplify}),4326), 6)::jsonb,
+            'geometry', public.ST_AsGeoJSON(public.ST_Transform(public.ST_SimplifyPreserveTopology(geometry,{simplify}),4326), 6)::jsonb,
             'properties', {props_sql})), '[]'::jsonb)) AS fc FROM raw.{table}""")
     return rows[0]["fc"]
 
