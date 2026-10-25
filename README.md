@@ -1,6 +1,6 @@
 # Lisbon Hotel Site Suitability
 
-An end-to-end geospatial system that finds suitable land for a hotel in Lisbon. It turns a Jupyter multi-criteria analysis into a repeatable pipeline: **PostGIS database → Python ETL → read-only API → interactive web dashboard**, deployable on free hosting.
+An end-to-end geospatial system that finds suitable land for a hotel in Lisbon.
 
 **Live demo:** [Access Dashboard here](https://lisbon-hotel-dashboard.onrender.com/) (free hosting sleeps when idle, so the first load can take about a minute)
 
