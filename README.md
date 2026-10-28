@@ -2,7 +2,6 @@
 
 An end-to-end geospatial system that finds suitable land for a hotel in Lisbon.
 
-[![XERJ Corpus Hub contributor](https://hub.xerj.org/contributors/OceeDiTT/badge.svg)](https://hub.xerj.org/contributors/OceeDiTT)
 
 **Live demo:** [Access Dashboard here](https://lisbon-hotel-dashboard.onrender.com/) (free hosting sleeps when idle, so the first load can take about a minute)
 
